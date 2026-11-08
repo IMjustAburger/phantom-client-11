@@ -28,12 +28,29 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Extract source ZIP
+        run: |
+          mkdir source
+          ZIP=$(find . -maxdepth 2 -name '*.zip' -print -quit)
+          test -n "$ZIP" || { echo "Source ZIP not found"; exit 1; }
+          unzip -q "$ZIP" -d source
+
       - name: Build Phantom Client
-        run: chmod +x gradlew && ./gradlew --no-daemon clean build
+        run: |
+          PROJECT=$(find source -type f \( -name gradlew -o -name build.gradle -o -name build.gradle.kts \) -print -quit)
+          test -n "$PROJECT" || { echo "Gradle project not found"; exit 1; }
+          DIR=$(dirname "$PROJECT")
+          cd "$DIR"
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew --no-daemon clean build
+          else
+            gradle --no-daemon clean build
+          fi
 
       - name: Upload finished JAR
         uses: actions/upload-artifact@v4
         with:
           name: PhantomClient-1.7.0
-          path: build/libs/*.jar
+          path: source/**/build/libs/*.jar
           if-no-files-found: error
